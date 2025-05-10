@@ -5,6 +5,7 @@ import imutils
 import time
 import pickle
 import numpy as np
+import json
 from imutils.video import FPS
 from imutils.video import VideoStream
 
@@ -19,8 +20,17 @@ print("Loading Face Recognizer...")
 embedder = cv2.dnn.readNetFromTorch("openface_nn4.small2.v1.t7")
 
 # load the actual face recognition model along with the label encoder
-recognizer = pickle.loads(open("output/recognizer.pickle", "rb").read())
+recognizer = pickle.loads(open("output/recognizer", "rb").read())
 le = pickle.loads(open("output/le.pickle", "rb").read())
+
+# load personal information
+print("Loading Personal Information...")
+with open("person_info.json", "r") as f:
+	person_info = json.load(f)
+
+# Print available classes for debugging
+print("Available classes in label encoder:", le.classes_)
+print("Available keys in person_info:", list(person_info.keys()))
 
 # initialize the video stream, then allow the camera sensor to warm up
 print("Starting Video Stream...")
@@ -79,13 +89,42 @@ while True:
 			proba = preds[j]
 			name = le.classes_[j]
 
+			# Print debug information
+			print(f"Recognized name: {name}, Probability: {proba * 100:.2f}%")
+
+			# Try to find the person in the JSON data
+			# First try exact match
+			if name in person_info:
+				info = person_info[name]
+			# Then try case-insensitive match
+			else:
+				name_lower = name.lower()
+				matching_key = next((k for k in person_info.keys() if k.lower() == name_lower), None)
+				if matching_key:
+					info = person_info[matching_key]
+				else:
+					print(f"No matching information found for: {name}")
+					continue
+
 			# draw the bounding box of the face along with the associated probability
-			text = "{}: {:.2f}%".format(name, proba * 100)
+			text = f"{info['name']}: {proba * 100:.2f}%"
 			y = startY - 10 if startY - 10 > 10 else startY + 10
 			cv2.rectangle(frame, (startX, startY), (endX, endY),
 				(0, 0, 255), 2)
 			cv2.putText(frame, text, (startX, y),
 				cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 255), 2)
+			
+			# Display personal information
+			info_text = [
+				f"ID: {info['id']}",
+				f"DOB: {info['dob']}",
+				f"Address: {info['address']}"
+			]
+			
+			for idx, line in enumerate(info_text):
+				y_pos = endY + 20 + (idx * 20)
+				cv2.putText(frame, line, (startX, y_pos),
+					cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 0), 2)
 
 	# update the FPS counter
 	fps.update()

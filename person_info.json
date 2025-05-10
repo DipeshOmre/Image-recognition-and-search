@@ -1,0 +1,51 @@
+{
+    "Ajay devgan": {
+        "id": "P001",
+        "name": "Ajay Devgan",
+        "dob": "1990-01-01",
+        "address": "123 Main Street, City"
+    },
+    "Akshay khanna": {
+        "id": "P002",
+        "name": "Akshay Khanna",
+        "dob": "1992-05-15",
+        "address": "456 Oak Avenue, Town"
+    },
+    "Akshay kumar": {
+        "id": "P008",
+        "name": "Akshay Kumar",
+        "dob": "1993-07-20",
+        "address": "789 Pine Road, Village"
+    },
+    "Amir Khan": {
+        "id": "P004",
+        "name": "Amir Khan",
+        "dob": "1993-07-20",
+        "address": "789 Pine Road, Village"
+    },
+    "Ayesha takia": {
+        "id": "P007",
+        "name": "Ayesha Takia",
+        "dob": "1993-07-20",
+        "address": "789 Pine Road, Village"
+    },
+    "Dipesh": {
+        "id": "P005",
+        "name": "Dipesh",
+        "dob": "1993-07-20",
+        "address": "789 Pine Road, Village"
+    },
+    "Lara dutta": {
+        "id": "P006",
+        "name": "Lara Dutta",
+        "dob": "1993-07-20",
+        "address": "789 Pine Road, Village"
+    },
+    "Salman Khan": {
+        "id": "P003",
+        "name": "Salman Khan",
+        "dob": "1993-07-20",
+        "address": "789 Pine Road, Village"
+    }
+    
+} 
