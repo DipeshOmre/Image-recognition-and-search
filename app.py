@@ -8,6 +8,7 @@ import pickle
 import imutils
 from imutils.video import VideoStream
 import time
+import base64
 
 app = Flask(__name__)
 
@@ -167,6 +168,40 @@ def start_recognition():
     duration = request.json.get('duration', 10)
     result = recognize_for_duration(duration)
     return jsonify(result)
+
+@app.route('/search_person', methods=['POST'])
+def search_person():
+    name = request.json.get('name', '').strip()
+    if not name:
+        return jsonify({'found': False, 'error': 'No name provided'})
+    
+    # Check if name exists in person_info
+    if name in person_info:
+        info = person_info[name]
+        # Look for the person's image in the dataset
+        dataset_path = os.path.join('dataset', name)
+        if os.path.exists(dataset_path):
+            # Get the first image from the person's folder
+            image_files = [f for f in os.listdir(dataset_path) if f.endswith(('.jpg', '.jpeg', '.png'))]
+            if image_files:
+                image_path = os.path.join(dataset_path, image_files[0])
+                # Read and encode the image
+                with open(image_path, 'rb') as img_file:
+                    img_data = base64.b64encode(img_file.read()).decode('utf-8')
+                return jsonify({
+                    'found': True,
+                    'name': name,
+                    'id': info['id'],
+                    'dob': info['dob'],
+                    'address': info['address'],
+                    'image': img_data
+                })
+    
+    # If name not found or no image available
+    return jsonify({
+        'found': False,
+        'message': 'Person not found in database'
+    })
 
 @app.route('/get_results')
 def get_results():
