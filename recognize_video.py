@@ -55,6 +55,8 @@ MIN_RESULTS = 10  # Minimum number of results we want
 MAX_RESULTS = 12  # Maximum number of results we want
 confidence_threshold = 50.0  # Initial confidence threshold
 unknown_saved = False  # Flag to track if we've saved an unknown face
+unknown_count = 0  # Counter for unknown predictions
+known_count = 0  # Counter for known predictions
 output_message = None  # Store the first output message
 
 # loop over frames from the video file stream
@@ -115,19 +117,23 @@ while True:
 				# Try to find the person in the JSON data
 				if name in person_info:
 					info = person_info[name]
+					known_count += 1
 				else:
 					name_lower = name.lower()
 					matching_key = next((k for k in person_info.keys() if k.lower() == name_lower), None)
 					if matching_key:
 						info = person_info[matching_key]
+						known_count += 1
 					else:
 						info = {"name": "Unknown", "id": "Unknown", "dob": "Unknown", "address": "Unknown"}
+						unknown_count += 1
 			else:
 				info = {"name": "Unknown", "id": "Unknown", "dob": "Unknown", "address": "Unknown"}
+				unknown_count += 1
 
-			# Save only the first unknown face
+			# Save only the first unknown face if unknown predictions exceed known predictions
 			unknown_filename = None
-			if info["name"] == "Unknown" and not unknown_saved:
+			if info["name"] == "Unknown" and not unknown_saved and unknown_count > known_count:
 				timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 				unknown_filename = f"unknown_{timestamp}.jpg"
 				unknown_path = os.path.join(unknown_dir, unknown_filename)
@@ -206,6 +212,12 @@ print("Approx. FPS: {:.2f}".format(fps.fps()))
 if output_message:
 	print("\nFinal Recognition Result:")
 	print(output_message)
+	print(f"Unknown predictions: {unknown_count}")
+	print(f"Known predictions: {known_count}")
+	if unknown_saved:
+		print("Unknown face was saved because unknown predictions exceeded known predictions")
+	else:
+		print("Unknown face was not saved because known predictions exceeded or equaled unknown predictions")
 
 # Ensure we have at least MIN_RESULTS
 if len(recognition_results) < MIN_RESULTS:
