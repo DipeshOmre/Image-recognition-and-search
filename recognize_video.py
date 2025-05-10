@@ -45,7 +45,9 @@ fps = FPS().start()
 # Set start time
 start_time = time.time()
 recognition_results = []
-MAX_RESULTS = 12  # Maximum number of results to store
+MIN_RESULTS = 10  # Minimum number of results we want
+MAX_RESULTS = 12  # Maximum number of results we want
+confidence_threshold = 50.0  # Initial confidence threshold
 
 # loop over frames from the video file stream
 while True:
@@ -123,8 +125,16 @@ while True:
 				"id": info["id"]
 			}
 			
+			# Adjust confidence threshold based on number of results
+			if len(recognition_results) < MIN_RESULTS:
+				# If we have too few results, lower the threshold
+				confidence_threshold = max(30.0, confidence_threshold - 1.0)
+			elif len(recognition_results) > MAX_RESULTS:
+				# If we have too many results, increase the threshold
+				confidence_threshold = min(90.0, confidence_threshold + 1.0)
+			
 			# Only add if confidence is high enough and we haven't reached max results
-			if result["confidence"] > 50 and len(recognition_results) < MAX_RESULTS:
+			if result["confidence"] > confidence_threshold and len(recognition_results) < MAX_RESULTS:
 				recognition_results.append(result)
 				# Sort results by confidence and keep only top MAX_RESULTS
 				recognition_results = sorted(recognition_results, key=lambda x: x["confidence"], reverse=True)[:MAX_RESULTS]
@@ -165,12 +175,19 @@ fps.stop()
 print("Elapsed time: {:.2f}".format(fps.elapsed()))
 print("Approx. FPS: {:.2f}".format(fps.fps()))
 
+# Ensure we have at least MIN_RESULTS
+if len(recognition_results) < MIN_RESULTS:
+	print(f"Warning: Only got {len(recognition_results)} results (minimum desired: {MIN_RESULTS})")
+elif len(recognition_results) > MAX_RESULTS:
+	print(f"Warning: Got {len(recognition_results)} results (maximum desired: {MAX_RESULTS})")
+
 # Save recognition results to a file
 output_file = "recognition_results.json"
 with open(output_file, "w") as f:
 	json.dump(recognition_results, f, indent=4)
 print(f"Recognition results saved to {output_file}")
 print(f"Total results saved: {len(recognition_results)}")
+print(f"Final confidence threshold: {confidence_threshold:.2f}%")
 
 # cleanup
 cv2.destroyAllWindows()

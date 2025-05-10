@@ -11,12 +11,6 @@
         "dob": "2017-05-15",
         "address": "456 Oak Avenue, Town"
     },
-    "Amir Khan": {
-        "id": "P008",
-        "name": "Amir Khan",
-        "dob": "1993-07-20",
-        "address": "789 Pine Road, Village"
-    },
     "Dipesh": {
         "id": "P004",
         "name": "Dipesh",
