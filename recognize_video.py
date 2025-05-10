@@ -11,6 +11,12 @@ from imutils.video import VideoStream
 from datetime import datetime
 from heapq import nlargest
 
+# Create Unknown_images directory if it doesn't exist
+unknown_dir = "Unknown_images"
+if not os.path.exists(unknown_dir):
+	os.makedirs(unknown_dir)
+	print(f"Created directory: {unknown_dir}")
+
 # load serialized face detector
 print("Loading Face Detector...")
 protoPath = "face_detection_model/deploy.prototxt"
@@ -48,6 +54,8 @@ recognition_results = []
 MIN_RESULTS = 10  # Minimum number of results we want
 MAX_RESULTS = 12  # Maximum number of results we want
 confidence_threshold = 50.0  # Initial confidence threshold
+unknown_saved = False  # Flag to track if we've saved an unknown face
+output_message = None  # Store the first output message
 
 # loop over frames from the video file stream
 while True:
@@ -117,6 +125,25 @@ while True:
 			else:
 				info = {"name": "Unknown", "id": "Unknown", "dob": "Unknown", "address": "Unknown"}
 
+			# Save only the first unknown face
+			unknown_filename = None
+			if info["name"] == "Unknown" and not unknown_saved:
+				timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+				unknown_filename = f"unknown_{timestamp}.jpg"
+				unknown_path = os.path.join(unknown_dir, unknown_filename)
+				cv2.imwrite(unknown_path, face)
+				unknown_saved = True
+
+			# Store the first output message
+			if output_message is None:
+				if info["name"] == "Unknown":
+					if unknown_filename:
+						output_message = f"Output: Unknown (saved as {unknown_filename})"
+					else:
+						output_message = "Output: Unknown"
+				else:
+					output_message = f"Output: {info['name']} (ID: {info['id']}), Confidence: {proba * 100:.2f}%"
+
 			# Store recognition result
 			result = {
 				"timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -175,6 +202,11 @@ fps.stop()
 print("Elapsed time: {:.2f}".format(fps.elapsed()))
 print("Approx. FPS: {:.2f}".format(fps.fps()))
 
+# Print the final output message
+if output_message:
+	print("\nFinal Recognition Result:")
+	print(output_message)
+
 # Ensure we have at least MIN_RESULTS
 if len(recognition_results) < MIN_RESULTS:
 	print(f"Warning: Only got {len(recognition_results)} results (minimum desired: {MIN_RESULTS})")
@@ -188,6 +220,7 @@ with open(output_file, "w") as f:
 print(f"Recognition results saved to {output_file}")
 print(f"Total results saved: {len(recognition_results)}")
 print(f"Final confidence threshold: {confidence_threshold:.2f}%")
+print(f"Unknown face saved: {unknown_saved}")
 
 # cleanup
 cv2.destroyAllWindows()
