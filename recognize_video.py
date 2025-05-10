@@ -8,6 +8,8 @@ import numpy as np
 import json
 from imutils.video import FPS
 from imutils.video import VideoStream
+from datetime import datetime
+from heapq import nlargest
 
 # load serialized face detector
 print("Loading Face Detector...")
@@ -40,8 +42,17 @@ time.sleep(2.0)
 # start the FPS throughput estimator
 fps = FPS().start()
 
+# Set start time
+start_time = time.time()
+recognition_results = []
+MAX_RESULTS = 12  # Maximum number of results to store
+
 # loop over frames from the video file stream
 while True:
+	# Check if 10 seconds have passed
+	if time.time() - start_time > 10:
+		break
+
 	# grab the frame from the threaded video stream
 	frame = vs.read()
 
@@ -89,22 +100,34 @@ while True:
 			proba = preds[j]
 			name = le.classes_[j]
 
-			# Print debug information
-			print(f"Recognized name: {name}, Probability: {proba * 100:.2f}%")
-
-			# Try to find the person in the JSON data
-			# First try exact match
-			if name in person_info:
-				info = person_info[name]
-			# Then try case-insensitive match
-			else:
-				name_lower = name.lower()
-				matching_key = next((k for k in person_info.keys() if k.lower() == name_lower), None)
-				if matching_key:
-					info = person_info[matching_key]
+			# Only consider it a match if probability is high enough
+			if proba > 0.5:
+				# Try to find the person in the JSON data
+				if name in person_info:
+					info = person_info[name]
 				else:
-					print(f"No matching information found for: {name}")
-					continue
+					name_lower = name.lower()
+					matching_key = next((k for k in person_info.keys() if k.lower() == name_lower), None)
+					if matching_key:
+						info = person_info[matching_key]
+					else:
+						info = {"name": "Unknown", "id": "Unknown", "dob": "Unknown", "address": "Unknown"}
+			else:
+				info = {"name": "Unknown", "id": "Unknown", "dob": "Unknown", "address": "Unknown"}
+
+			# Store recognition result
+			result = {
+				"timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+				"name": info["name"],
+				"confidence": float(proba * 100),
+				"id": info["id"]
+			}
+			
+			# Only add if confidence is high enough and we haven't reached max results
+			if result["confidence"] > 50 and len(recognition_results) < MAX_RESULTS:
+				recognition_results.append(result)
+				# Sort results by confidence and keep only top MAX_RESULTS
+				recognition_results = sorted(recognition_results, key=lambda x: x["confidence"], reverse=True)[:MAX_RESULTS]
 
 			# draw the bounding box of the face along with the associated probability
 			text = f"{info['name']}: {proba * 100:.2f}%"
@@ -139,8 +162,15 @@ while True:
 
 # stop the timer and display FPS information
 fps.stop()
-print("Elasped time: {:.2f}".format(fps.elapsed()))
+print("Elapsed time: {:.2f}".format(fps.elapsed()))
 print("Approx. FPS: {:.2f}".format(fps.fps()))
+
+# Save recognition results to a file
+output_file = "recognition_results.json"
+with open(output_file, "w") as f:
+	json.dump(recognition_results, f, indent=4)
+print(f"Recognition results saved to {output_file}")
+print(f"Total results saved: {len(recognition_results)}")
 
 # cleanup
 cv2.destroyAllWindows()

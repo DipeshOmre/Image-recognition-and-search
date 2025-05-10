@@ -1,49 +1,43 @@
 {
-    "Ajay devgan": {
+    "Aaradhya Bachchan": {
         "id": "P001",
-        "name": "Ajay Devgan",
-        "dob": "1990-01-01",
+        "name": "Aaradhya Bachchan",
+        "dob": "2020-01-01",
         "address": "123 Main Street, City"
     },
-    "Akshay khanna": {
+    "AbRam Khan": {
         "id": "P002",
-        "name": "Akshay Khanna",
-        "dob": "1992-05-15",
+        "name": "AbRam Khan",
+        "dob": "2017-05-15",
         "address": "456 Oak Avenue, Town"
     },
-    "Akshay kumar": {
-        "id": "P008",
-        "name": "Akshay Kumar",
-        "dob": "1993-07-20",
-        "address": "789 Pine Road, Village"
-    },
     "Amir Khan": {
-        "id": "P004",
+        "id": "P008",
         "name": "Amir Khan",
         "dob": "1993-07-20",
         "address": "789 Pine Road, Village"
     },
-    "Ayesha takia": {
-        "id": "P007",
-        "name": "Ayesha Takia",
-        "dob": "1993-07-20",
-        "address": "789 Pine Road, Village"
-    },
     "Dipesh": {
-        "id": "P005",
+        "id": "P004",
         "name": "Dipesh",
         "dob": "1993-07-20",
         "address": "789 Pine Road, Village"
     },
-    "Lara dutta": {
-        "id": "P006",
-        "name": "Lara Dutta",
+    "Innaya Naomi kemmu": {
+        "id": "P007",
+        "name": "Innaya Naomi kemmu",
         "dob": "1993-07-20",
         "address": "789 Pine Road, Village"
     },
-    "Salman Khan": {
-        "id": "P003",
-        "name": "Salman Khan",
+    "Nitara kumar": {
+        "id": "P005",
+        "name": "Nitara kumar",
+        "dob": "1993-07-20",
+        "address": "789 Pine Road, Village"
+    },
+    "Taimur ali": {
+        "id": "P006",
+        "name": "Taimur ali",
         "dob": "1993-07-20",
         "address": "789 Pine Road, Village"
     }
