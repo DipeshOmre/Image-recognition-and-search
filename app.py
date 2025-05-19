@@ -21,6 +21,7 @@ unknown_count = 0
 known_count = 0
 unknown_saved = False
 output_message = None
+is_recognition_running = False
 
 # Load models and data
 def load_models():
@@ -52,9 +53,18 @@ def index():
     return render_template('index.html')
 
 def recognize_for_duration(duration=10):
-    global vs, output_frame, lock, recognition_results, unknown_count, known_count, unknown_saved, output_message
-    vs = VideoStream(src=0).start()
-    time.sleep(2.0)
+    global vs, output_frame, lock, recognition_results, unknown_count, known_count, unknown_saved, output_message, is_recognition_running
+    
+    if is_recognition_running:
+        return {
+            'output_message': 'Recognition already in progress',
+            'unknown_count': unknown_count,
+            'known_count': known_count,
+            'unknown_saved': unknown_saved,
+            'results': recognition_results
+        }
+    
+    is_recognition_running = True
     start_time = time.time()
     recognition_results = []
     MIN_RESULTS = 10
@@ -64,82 +74,95 @@ def recognize_for_duration(duration=10):
     known_count = 0
     unknown_saved = False
     output_message = None
-    while True:
-        if time.time() - start_time > duration:
-            break
-        frame = vs.read()
-        frame = imutils.resize(frame, width=600)
-        (h, w) = frame.shape[:2]
-        imageBlob = cv2.dnn.blobFromImage(
-            cv2.resize(frame, (300, 300)), 1.0, (300, 300),
-            (104.0, 177.0, 123.0), swapRB=False, crop=False)
-        detector.setInput(imageBlob)
-        detections = detector.forward()
-        for i in range(0, detections.shape[2]):
-            confidence = detections[0, 0, i, 2]
-            if confidence > 0.5:
-                box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
-                (startX, startY, endX, endY) = box.astype("int")
-                face = frame[startY:endY, startX:endX]
-                (fH, fW) = face.shape[:2]
-                if fW < 20 or fH < 20:
-                    continue
-                faceBlob = cv2.dnn.blobFromImage(face, 1.0 / 255,
-                    (96, 96), (0, 0, 0), swapRB=True, crop=False)
-                embedder.setInput(faceBlob)
-                vec = embedder.forward()
-                preds = recognizer.predict_proba(vec)[0]
-                j = np.argmax(preds)
-                proba = preds[j]
-                name = le.classes_[j]
-                if proba > 0.5:
-                    if name in person_info:
-                        info = person_info[name]
-                        known_count += 1
-                    else:
-                        name_lower = name.lower()
-                        matching_key = next((k for k in person_info.keys() if k.lower() == name_lower), None)
-                        if matching_key:
-                            info = person_info[matching_key]
+    
+    try:
+        while True:
+            if time.time() - start_time > duration:
+                break
+            if vs is None:
+                raise Exception("Video stream not initialized")
+                
+            frame = vs.read()
+            if frame is None:
+                raise Exception("Failed to read frame from camera")
+                
+            frame = imutils.resize(frame, width=600)
+            (h, w) = frame.shape[:2]
+            imageBlob = cv2.dnn.blobFromImage(
+                cv2.resize(frame, (300, 300)), 1.0, (300, 300),
+                (104.0, 177.0, 123.0), swapRB=False, crop=False)
+            detector.setInput(imageBlob)
+            detections = detector.forward()
+            for i in range(0, detections.shape[2]):
+                confidence = detections[0, 0, i, 2]
+                if confidence > 0.5:
+                    box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
+                    (startX, startY, endX, endY) = box.astype("int")
+                    face = frame[startY:endY, startX:endX]
+                    (fH, fW) = face.shape[:2]
+                    if fW < 20 or fH < 20:
+                        continue
+                    faceBlob = cv2.dnn.blobFromImage(face, 1.0 / 255,
+                        (96, 96), (0, 0, 0), swapRB=True, crop=False)
+                    embedder.setInput(faceBlob)
+                    vec = embedder.forward()
+                    preds = recognizer.predict_proba(vec)[0]
+                    j = np.argmax(preds)
+                    proba = preds[j]
+                    name = le.classes_[j]
+                    if proba > 0.5:
+                        if name in person_info:
+                            info = person_info[name]
                             known_count += 1
                         else:
-                            info = {"name": "Unknown", "id": "Unknown", "dob": "Unknown", "address": "Unknown"}
-                            unknown_count += 1
-                else:
-                    info = {"name": "Unknown", "id": "Unknown", "dob": "Unknown", "address": "Unknown"}
-                    unknown_count += 1
-                unknown_filename = None
-                if info["name"] == "Unknown" and not unknown_saved and unknown_count > known_count:
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    unknown_filename = f"unknown_{timestamp}.jpg"
-                    unknown_path = os.path.join(unknown_dir, unknown_filename)
-                    cv2.imwrite(unknown_path, face)
-                    unknown_saved = True
-                    print(f"Saved unknown face as {unknown_filename} (Unknown: {unknown_count}, Known: {known_count})")
-                if output_message is None:
-                    if info["name"] == "Unknown":
-                        if unknown_filename:
-                            output_message = f"Output: Unknown (saved as {unknown_filename})"
-                        else:
-                            output_message = "Output: Unknown"
+                            name_lower = name.lower()
+                            matching_key = next((k for k in person_info.keys() if k.lower() == name_lower), None)
+                            if matching_key:
+                                info = person_info[matching_key]
+                                known_count += 1
+                            else:
+                                info = {"name": "Unknown", "id": "Unknown", "dob": "Unknown", "address": "Unknown"}
+                                unknown_count += 1
                     else:
-                        output_message = f"Output: {info['name']} (ID: {info['id']}), Confidence: {proba * 100:.2f}%"
-                result = {
-                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "name": info["name"],
-                    "confidence": float(proba * 100),
-                    "id": info["id"]
-                }
-                if len(recognition_results) < MIN_RESULTS:
-                    confidence_threshold = max(30.0, confidence_threshold - 1.0)
-                elif len(recognition_results) > MAX_RESULTS:
-                    confidence_threshold = min(90.0, confidence_threshold + 1.0)
-                if result["confidence"] > confidence_threshold and len(recognition_results) < MAX_RESULTS:
-                    recognition_results.append(result)
-                    recognition_results = sorted(recognition_results, key=lambda x: x["confidence"], reverse=True)[:MAX_RESULTS]
-    vs.stop()
-    with open("recognition_results.json", "w") as f:
-        json.dump(recognition_results, f, indent=4)
+                        info = {"name": "Unknown", "id": "Unknown", "dob": "Unknown", "address": "Unknown"}
+                        unknown_count += 1
+                    unknown_filename = None
+                    if info["name"] == "Unknown" and not unknown_saved and unknown_count > known_count:
+                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                        unknown_filename = f"unknown_{timestamp}.jpg"
+                        unknown_path = os.path.join(unknown_dir, unknown_filename)
+                        cv2.imwrite(unknown_path, face)
+                        unknown_saved = True
+                        print(f"Saved unknown face as {unknown_filename} (Unknown: {unknown_count}, Known: {known_count})")
+                    if output_message is None:
+                        if info["name"] == "Unknown":
+                            if unknown_filename:
+                                output_message = f"Output: Unknown (saved as {unknown_filename})"
+                            else:
+                                output_message = "Output: Unknown"
+                        else:
+                            output_message = f"Output: {info['name']} (ID: {info['id']}), Confidence: {proba * 100:.2f}%"
+                    result = {
+                        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "name": info["name"],
+                        "confidence": float(proba * 100),
+                        "id": info["id"]
+                    }
+                    if len(recognition_results) < MIN_RESULTS:
+                        confidence_threshold = max(30.0, confidence_threshold - 1.0)
+                    elif len(recognition_results) > MAX_RESULTS:
+                        confidence_threshold = min(90.0, confidence_threshold + 1.0)
+                    if result["confidence"] > confidence_threshold and len(recognition_results) < MAX_RESULTS:
+                        recognition_results.append(result)
+                        recognition_results = sorted(recognition_results, key=lambda x: x["confidence"], reverse=True)[:MAX_RESULTS]
+    except Exception as e:
+        print(f"Error during recognition: {str(e)}")
+        raise e
+    finally:
+        is_recognition_running = False
+        with open("recognition_results.json", "w") as f:
+            json.dump(recognition_results, f, indent=4)
+    
     return {
         'output_message': output_message,
         'unknown_count': unknown_count,
@@ -151,15 +174,27 @@ def recognize_for_duration(duration=10):
 @app.route('/video_feed')
 def video_feed():
     def generate_frames():
-        vs = VideoStream(src=0).start()
-        time.sleep(2.0)
-        while True:
-            frame = vs.read()
-            frame = imutils.resize(frame, width=600)
-            ret, buffer = cv2.imencode('.jpg', frame)
-            frame = buffer.tobytes()
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+        global vs
+        try:
+            if vs is None:
+                vs = VideoStream(src=0).start()
+                time.sleep(2.0)  # Allow camera to warm up
+            
+            while True:
+                frame = vs.read()
+                if frame is None:
+                    break
+                frame = imutils.resize(frame, width=600)
+                ret, buffer = cv2.imencode('.jpg', frame)
+                frame = buffer.tobytes()
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+        except Exception as e:
+            print(f"Error in video feed: {str(e)}")
+            if vs is not None:
+                vs.stop()
+                vs = None
+    
     return Response(generate_frames(),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
